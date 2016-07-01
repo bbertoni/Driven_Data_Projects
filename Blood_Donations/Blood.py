@@ -19,15 +19,18 @@ def scale(X):
     distmat = np.outer(dist,onevec)
     return (X -mumat)/distmat, mu, dist
 
+
 def rescale(X,mu,dist):
     onevec = np.ones(X.shape[1])
     mumat = np.outer(mu,onevec)
     distmat = np.outer(dist,onevec)
     return (X -mumat)/distmat
 
+
 def sigmoid(z):
     s = 1.0 / (1.0 + np.exp(-1.0*z))
     return s
+    
     
 def compute_cost(theta,X,y,lambd):
     m = len(y)
@@ -40,6 +43,7 @@ def compute_cost(theta,X,y,lambd):
 #    print (J)
     return J
 
+
 def compute_grad(theta,X,y,lambd):
     m = len(y)
     z = np.dot(np.transpose(theta),X)
@@ -48,7 +52,8 @@ def compute_grad(theta,X,y,lambd):
     theta0[0] = 0
     grad = (1.0/m) * np.dot(X,(h-y)) + (lambd/m) * theta
     return grad
-    
+   
+   
 def bootstrap(data,num):
     traindata.columns = np.array(['index2','lastdon','number','volume','firstdon','madedon'])
 # number and volume contain same info  
@@ -104,14 +109,45 @@ def bootstrap(data,num):
             y = traindata.madedon[bootvals].values # "correct" answers to train with
             theta = np.zeros(X.shape[0])
             thetamin = fmin_bfgs(f=compute_cost,x0=theta,fprime=compute_grad,args=(X,y,lambd))
-#            print( thetamin)
             thetavals[i] = thetamin
             seeds[i] = seed
-#        print(thetavals)
         thetamin_avg = np.mean(thetavals,axis=0)
-#    print( thetamin_avg, mus,dists)
     return thetamin_avg, mu, dist, seeds
-
+    
+    
+def jackknife(data,num):
+    traindata.columns = np.array(['index2','lastdon','number','volume','firstdon','madedon'])
+# number and volume contain same info  
+    X0 = np.array([traindata.lastdon,traindata.number])
+    lambd = 0
+    if num == 1:
+        X, mu, dist = scale(X0) # feature scaling and normalization
+        X = np.vstack((np.ones(len(X[0])),X)) # add a row of ones
+        y = traindata.madedon # "correct" answers to train with
+        theta = np.zeros(X.shape[0])
+        thetamin = fmin_bfgs(f=compute_cost,x0=theta,fprime=compute_grad,args=(X,y,lambd))
+        prob = sigmoid(np.dot(thetamin,X))
+        pred = np.zeros(len(prob))
+        pred[prob>=0.5] = 1
+        print("Percent correct = "+str(sum(pred==y)/len(y)))
+        thetamin_avg = thetamin
+    else:
+        m = len(data)
+        thetavals = np.zeros((m,3))
+        for i in range(m-1):
+            X0 = np.array([traindata.lastdon,traindata.number])
+            X0 = np.delete(X0,i,1) # remove one data point
+            if i == 0:
+                X, mu, dist = scale(X0) # feature scaling and normalization
+            else:
+                X = rescale(X0,mu,dist)
+            X = np.vstack((np.ones(len(X[0])),X)) # add a row of ones
+            y = np.delete(traindata.madedon.values,i) # "correct" answers to train with
+            theta = np.zeros(X.shape[0])
+            thetamin = fmin_bfgs(f=compute_cost,x0=theta,fprime=compute_grad,args=(X,y,lambd))
+            thetavals[i] = thetamin
+        thetamin_avg = np.mean(thetavals,axis=0)
+    return thetamin_avg, mu, dist
 
 ###############################################################################################
 
@@ -119,7 +155,7 @@ def bootstrap(data,num):
 infile ="training_data.csv"
 traindata = read_csv(infile, header = 0)
 
-thetamin, mu, dist, seeds = bootstrap(traindata,1000)
+thetamin, mu, dist = jackknife(traindata,2)
 
 infile ="test_data.csv"
 testdata = read_csv(infile, header = 0) 
@@ -139,7 +175,7 @@ X2 = np.vstack((np.ones(len(testdata.lastdon)),X2))
 
 prob2 = sigmoid(np.dot(thetamin,X2))
 
-file = open("blood_submission9.csv", "w",newline='')
+file = open("blood_submission11.csv", "w",newline='')
 c = csv.writer(file)
 c.writerow(["","Made Donation in March 2007"])
 
