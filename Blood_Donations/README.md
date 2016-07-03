@@ -1,3 +1,6 @@
+# DrivenData Project: Predict Blood Donations
+From https://www.drivendata.org/competitions/2/
+
 * **training_data.csv**: set of blood donation data used to train a machine learning algorithm, contains the features *patient number* (unlabeled), *Months since Last Donation*, *Number of Donations*, *Total Volume Donated* (c.c.), *Months since First Donation*, and *Made Donation in March 2007* (a binary variable: 0 if no, 1 if yes).
 
 * **test_data.csv**: set of test blood donation data, contains the features *patient number* (unlabeled), *Months since Last Donation*, *Number of Donations*, *Total Volume Donated* (c.c.), and *Months since First Donation*.
