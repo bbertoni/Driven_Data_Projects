@@ -1,0 +1,50 @@
+---
+title: "Blood Donations"
+author: "Bridget Bertoni"
+date: "April 12, 2018"
+output: pdf_document
+---
+
+```{r, fig.width=8, fig.height=8}
+# read in data
+train_data=read.csv(file="/Users/bbertoni/Desktop/github/Blood_Donations/training_data.csv",header=T)
+test_data=read.csv(file="/Users/bbertoni/Desktop/github/Blood_Donations/test_data.csv",header=T)
+
+names(train_data)=c("ID","Last_donation","Num_donations","Volume","First_donation","Made_donation")
+names(test_data)=c("ID","Last_donation","Num_donations","Volume","First_donation")
+
+head(train_data)
+head(test_data)
+
+# split training data into a training set and a validation set
+set.seed(333)
+train=sample(1:nrow(train_data),0.7*nrow(train_data),replace=F)
+val_data = train_data[-train,]
+train_data = train_data[train,]
+
+# check for missing or strange values
+sum(is.na(train_data))
+sum(is.na(val_data))# no missing values
+sum(is.na(test_data)) # missing values
+
+plot(train_data)
+
+cor(train_data) # correlation between volume and the number of donations is 1
+
+# fit basic logistic regression
+glm.fit=glm(Made_donation~Last_donation+Num_donations+First_donation,data=train_data,
+            family=binomial)
+summary(glm.fit)
+#plot(glm.fit)
+glm.probs=predict(glm.fit,val_data,type="response")
+glm.pred=rep(0,nrow(val_data))
+glm.pred[glm.probs>0.5]=1
+table(glm.pred,val_data$Made_donation) # confusion matrix
+mean(glm.pred==val_data$Made_donation)
+
+# fit KNN, choose k to minimize the cost on the validation set
+
+# fit a random forest
+
+```
+
