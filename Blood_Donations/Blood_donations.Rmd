@@ -43,6 +43,19 @@ table(glm.pred,val_data$Made_donation) # confusion matrix
 mean(glm.pred==val_data$Made_donation)
 
 # fit KNN, choose k to minimize the cost on the validation set
+library(class)
+train.X=as.matrix(train_data,nrow=nrow(train_data),ncol=ncol(train_data))
+val.X=as.matrix(val_data,nrow=nrow(val_data),ncol=ncol(val_data))
+set.seed(111)
+kvals=seq(1,nrow(train_data))
+logloss=rep(NA,length(kvals))
+for (k in 1:length(kvals)){
+  knn.pred=knn(train.X,val.X,train_data$Made_donation,k=k)
+  logloss[k]=val_data$Made_donation*log()
+}
+
+table(knn.pred,val_data$Made_donation)
+mean(knn.pred==val_data$Made_donation)
 
 # fit a random forest
 
