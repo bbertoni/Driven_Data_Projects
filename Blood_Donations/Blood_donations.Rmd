@@ -5,7 +5,7 @@ date: "April 12, 2018"
 output: pdf_document
 ---
 
-```{r, fig.width=8, fig.height=8}
+```{r, fig.width=7.8, fig.height=7.8}
 # read in data
 train_data=read.csv(file="/Users/bbertoni/Desktop/github/Blood_Donations/training_data.csv",header=T)
 test_data=read.csv(file="/Users/bbertoni/Desktop/github/Blood_Donations/test_data.csv",header=T)
@@ -28,6 +28,14 @@ sum(is.na(val_data))# no missing values
 sum(is.na(test_data)) # missing values
 
 plot(train_data)
+par(mfrow=c(2,2))
+plot(as.factor(train_data$Made_donation),train_data$Last_donation)
+plot(as.factor(train_data$Made_donation),train_data$Num_donations)
+plot(as.factor(train_data$Made_donation),train_data$First_donation)
+plot(as.factor(train_data$Made_donation),train_data$Last_donation*train_data$Last_donation)
+plot(as.factor(train_data$Made_donation),train_data$Num_donation*train_data$Num_donation)
+plot(as.factor(train_data$Made_donation),train_data$First_donation*train_data$First_donation)
+par(mfrow=c(1,1))
 
 cor(train_data) # correlation between volume and the number of donations is 1
 
@@ -41,21 +49,98 @@ glm.pred=rep(0,nrow(val_data))
 glm.pred[glm.probs>0.5]=1
 table(glm.pred,val_data$Made_donation) # confusion matrix
 mean(glm.pred==val_data$Made_donation)
+# log loss
+-(1/nrow(val_data))*( sum(val_data$Made_donation*log(glm.probs)) + 
+    sum((1-val_data$Made_donation)*log(1-glm.probs)) )
 
+# calculate predictions using all of the training data
+final_train_data=rbind(train_data,val_data)
+glm.fit=glm(Made_donation~Last_donation+Num_donations+First_donation,data=train_data,
+            family=binomial)
+glm.probs=predict(glm.fit,test_data,type="response")
+out=data.frame(test_data$ID,glm.probs)
+names(out)=c("","Made Donation in March 2007")
+write.csv(out,file="logreg_2018_04_16.csv",row.names=FALSE)
+
+# fit basic logistic regression, drop first donation
+glm.fit=glm(Made_donation~Last_donation+Num_donations,data=train_data,
+            family=binomial)
+summary(glm.fit)
+#plot(glm.fit)
+glm.probs=predict(glm.fit,val_data,type="response")
+glm.pred=rep(0,nrow(val_data))
+glm.pred[glm.probs>0.5]=1
+table(glm.pred,val_data$Made_donation) # confusion matrix
+mean(glm.pred==val_data$Made_donation)
+# log loss
+-(1/nrow(val_data))*( sum(val_data$Made_donation*log(glm.probs)) + 
+    sum((1-val_data$Made_donation)*log(1-glm.probs)) )
+
+# calculate predictions using all of the training data
+final_train_data=rbind(train_data,val_data)
+glm.fit=glm(Made_donation~Last_donation+Num_donations,data=train_data,
+            family=binomial)
+glm.probs=predict(glm.fit,test_data,type="response")
+out=data.frame(test_data$ID,glm.probs)
+names(out)=c("","Made Donation in March 2007")
+write.csv(out,file="logreg_nofirstdon_2018_04_16.csv",row.names=FALSE)
+
+# fit logistic regression with interaction terms
+glm.fit=glm(Made_donation~Last_donation+Num_donations+First_donation+Last_donation:Num_donations,data=train_data,
+            family=binomial)
+summary(glm.fit)
+#plot(glm.fit)
+glm.probs=predict(glm.fit,val_data,type="response")
+glm.pred=rep(0,nrow(val_data))
+glm.pred[glm.probs>0.5]=1
+table(glm.pred,val_data$Made_donation) # confusion matrix
+mean(glm.pred==val_data$Made_donation)
+# log loss
+-(1/nrow(val_data))*( sum(val_data$Made_donation*log(glm.probs)) + 
+    sum((1-val_data$Made_donation)*log(1-glm.probs)) )
+
+# calculate predictions using all of the training data
+final_train_data=rbind(train_data,val_data)
+glm.fit=glm(Made_donation~Last_donation+Num_donations+First_donation+Last_donation:Num_donations,data=train_data,
+            family=binomial)
+glm.probs=predict(glm.fit,test_data,type="response")
+out=data.frame(test_data$ID,glm.probs)
+names(out)=c("","Made Donation in March 2007")
+write.csv(out,file="logreg_int_2018_04_16.csv",row.names=FALSE)
+```
+
+```{r, fig.width=6.5, fig.height=4}
 # fit KNN, choose k to minimize the cost on the validation set
 library(class)
-train.X=as.matrix(train_data,nrow=nrow(train_data),ncol=ncol(train_data))
-val.X=as.matrix(val_data,nrow=nrow(val_data),ncol=ncol(val_data))
+train.X=as.matrix(train_data[,-c(1,4,6)],nrow=nrow(train_data),ncol=ncol(train_data)-3)
+val.X=as.matrix(val_data[,-c(1,4,6)],nrow=nrow(val_data),ncol=ncol(val_data)-3)
 set.seed(111)
 kvals=seq(1,nrow(train_data))
 logloss=rep(NA,length(kvals))
 for (k in 1:length(kvals)){
-  knn.pred=knn(train.X,val.X,train_data$Made_donation,k=k)
-  logloss[k]=val_data$Made_donation*log()
+  knn.pred=knn(train.X,val.X,train_data$Made_donation,k=k,prob=TRUE)
+  knn.prob=abs(attr(knn.pred,"prob")-10^-10) # need to add a fudge factor to deal
+                                             # with logs of 0 and 1
+  logloss[k]=-(1/nrow(val_data))*( sum(val_data$Made_donation*log(knn.prob)) + 
+    sum((1-val_data$Made_donation)*log(1-knn.prob)) )
 }
+which.min(logloss)
+logloss[which.min(logloss)]
+plot(1:length(kvals),logloss)
 
-table(knn.pred,val_data$Made_donation)
-mean(knn.pred==val_data$Made_donation)
+# choose k at the elbow, note small k is high variance, low bias:
+plot(1:50,logloss[1:50]) 
+
+# calculate predictions using all of the training data
+k=27 # pick k = 27
+final_train.X=rbind(train.X,val.X)
+test.X=as.matrix(test_data[,-c(1,4)],nrow=nrow(test_data),ncol=ncol(test_data)-2)
+knn.pred=knn(final_train.X,test.X,c(train_data$Made_donation,val_data$Made_donation),k=k,
+             prob=TRUE)
+knn.prob=abs(attr(knn.pred,"prob")-10^-10)
+out=data.frame(test_data$ID,knn.prob)
+names(out)=c("","Made Donation in March 2007")
+write.csv(out,file="knn_2018_04_16.csv",row.names=FALSE)
 
 # fit a random forest
 
