@@ -16,6 +16,9 @@ names(test_data)=c("ID","Last_donation","Num_donations","Volume","First_donation
 head(train_data)
 head(test_data)
 
+#train_data$Made_donation=as.factor(train_data$Made_donation)
+#test_data$Made_donation=as.factor(test_data$Made_donation)
+
 # split training data into a training set and a validation set
 set.seed(333)
 train=sample(1:nrow(train_data),0.7*nrow(train_data),replace=F)
@@ -142,7 +145,38 @@ out=data.frame(test_data$ID,knn.prob)
 names(out)=c("","Made Donation in March 2007")
 write.csv(out,file="knn_2018_04_16.csv",row.names=FALSE)
 
-# fit a random forest
+# fit a random forest with bagging
+library(randomForest)
+set.seed(200)
+train_data$Made_donation=as.factor(train_data$Made_donation)
+val_data$Made_donation=as.factor(val_data$Made_donation)
+#test_data$Made_donation=as.factor(test_data$Made_donation)
+m=ncol(train_data)-3
+bag.data=randomForest(Made_donation~Last_donation+Num_donations+First_donation+Last_donation:Num_donations,data=train_data[,-c(1,4)],mtry=m,importance=TRUE)
+bag.data
+importance(bag.data)
+probs=predict(bag.data,newdata=val_data,type="prob")[,2]+10^-10
+# log loss
+-(1/nrow(val_data))*( sum((as.numeric(val_data$Made_donation)-1)*log(probs)) + 
+    sum((1-(as.numeric(val_data$Made_donation)-1))*log(1-probs)) )
 
+# fit a random forest with boosting
+library(gbm)
+lambdas=c(10^-5,10^-4,10^-3,10^-2,0.05,0.1,0.2,0.5)
+logloss=rep(NA,length(lambdas))
+train_data_exp=cbind(train_data,train_data$Last_donation*train_data$Num_donations)
+names(train_data_exp)[7]="Last_num_int"
+val_data_exp=cbind(val_data,val_data$Last_donation*val_data$Num_donations)
+names(val_data_exp)[7]="Last_num_int"
+for (i in 1:length(lambdas)){
+  lambda=lambdas[i]
+  boost.data=gbm(Made_donation~Last_donation+Num_donations+First_donation+Last_num_int,data=train_data_exp,
+                 distribution="bernoulli",n.trees=1000,shrinkage=lambda,interaction.depth=2)
+  probs=predict(bag.data,newdata=val_data_exp,type="prob")[,2]+10^-10
+  probs
+  logloss[i]=-(1/nrow(val_data))*( sum((as.numeric(val_data$Made_donation)-1)*log(probs)) + 
+    sum((1-(as.numeric(val_data$Made_donation)-1))*log(1-probs)) )
+}
+logloss
 ```
 
